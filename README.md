@@ -51,10 +51,11 @@ First you need to setup google cloud RBAC running the following command:
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
 ```
 
-Now, you're able to deploy the Opereator:
+Now, you're able to deploy the operator:
 
 ```
 kubectl apply -f https://download.elastic.co/downloads/eck/1.5.0/all-in-one.yaml
+```
 
 ### Configuring StorageClass
 With StorageClass you can describe the "classes" of storage you want to use. Differents classes might map to quality of service levels, backups purpose or any arbitrary policy determined by the administrator. 
