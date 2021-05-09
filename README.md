@@ -1,19 +1,49 @@
-# eck-hot-warm-architecture
+# Configuring SAML with a hot-worm-cold architecture using ECK
 
-This article will guide to setup a hot-warm artechicture on top of Kubernetes using production features like: **dedicated nodes, zone awareness, pod & node affinity** and so an. If you interested in know more about it in deep you should check the [ECK](https://github.com/framsouza/eck) article.
+This article will guide to setup a SAML with auth0 as idp & Kibana as sp using a hot/warm/cold artechicture with ECK, the purpose of this project is to use production features like: **dedicated nodes, zone awareness, pod & node affinity, podDisruption, dedicated storage class**. If you interested in know more about it in deep you should check the [ECK](https://github.com/framsouza/eck) article. Also you should be familiar with how [SAML](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/saml-guide-stack.html) works.
 
 ### Scenario
-On this scenario we're running ECK to store Kubernetes metrics collected by metricbeats as a DaemonSet.
+On this scenario let's assume you want to deploy ECK to handle application logging and you want to use a centralized way to authenticate into Kibana using auth0. As logging data (time-series) has a predictable time of life, we can use hot, warm & cold architecture to have a better way to deal with your data over time.
 
-### Before Start
-If you wanna run this example without make any change on the manifest, please make sure you're using the following configuration:
+### Architecture 
 
--   2 GKE node pools
-	- 1. Using a Kubernetes label called  **type**  :  **hot**,
-	- 2. Using a Kubernetes label called  **type**  :  **warm**
--   GKE Cluster running on  **europe-west1**  region
+We are using GKE to setup this environment, with the following configurations:
 
-### Install ECK
+*3 Nodes pools
+1 Hot Node Pool wtih 6 Kubernetes instances running spread across 3 availabilty zones;;
+1 Warm Node Pool with Kubernetes instances running spread across 3 availabilty zones;;
+1 Cold Node Pool with Kubernetes instances running spread across 3 availabilty zones;;
+
+*Instances configuration
+- hot nodes: **c2-standard-4    (4 vCPUs, 16 GB memory, 100GB disk)**
+- warm nodes: **e2-standard-2   (2 vCPUs, 8 GB memory, 100GB disk)**
+- cold nodes: **e2-standard-2   (2 vCPUs, 8 GB memory, 100GB disk)**
+
+*9 Elasticsearch instances (Split by hot & warm, cold and dedicated master)* plust 1 Kibana instance;
+- 3 Elasticsearch hot data node (50Gi SSD disk, 4Gi JVM, 8Gi memory)
+- 3 Elasticsearch warm data node (100Gi disk, 2Gi JVM, 4Gi memory)
+- 3 Elasticsearch cold data node (100Gi disk, 2Gi JVM, 4Gi memory)
+- 3 Elasticsearch master node (10Gi disk, 1Gi JVM, 2Gi memory)
+
+_GKE zones_: europe-west1-b, europe-west1-c, europe-west1-d 
+
+For each node pool we are using an especific Kubernetes label to be able to attach the Elasticsearch instance into the right hard configuration. The label name is called "type" and the values are hot, warm or cold. Remember, if you want to update the Kubernetes node pool label, you must use the (command line)[https://cloud.google.com/kubernetes-engine/docs/how-to/update-existing-nodepools#updating_node_labels], this is not possible via Console UI.
+
+### Overview
+
+Hot-Warm-Cold architecture is the powerful way Elasticsearch uses to separe hot nodes (the ones that handle hot data/events) and warm & cold nodes (the ones that handle "no frenquency" data). These architecture are common for time series data like logging and metrics. For instance, logs from today are actively being indexed and this week's logs are most searched. Last week you may want to search but not as much as the current current week's logs. Last month's logs may or may not be searched, then you keep them around just in case stored in the cold nodes.
+
+We're using three node pools, each one to handle the specific Elasticsearch role (hot, warm & code) with differents hardware settings.
+
+Using separed node pools means we can isolate the Kubernetes nodes to run only Elasticsearch workloads and it can be done through Kubernetes labels. You don't need to spin up one Kubernetes cluster only to run Elasticsearch, you can use node pools to run & isolate Elasticsearch from your application, it's helpful to segregate resource utilisation. 
+
+As the purpose of this guide is configure a production environment, we are going to configure also a SAML authentication with auth0 as idP.
+
+Remember, to use SAML you should use the enterprise license.
+
+### First things first / Operator setup
+
+# Install ECK
 
 First you need to setup google cloud RBAC running the following command:
 
@@ -24,137 +54,103 @@ kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-ad
 Now, you're able to deploy the Opereator:
 
 ```
-kubectl apply -f https://download.elastic.co/downloads/eck/1.3.0/all-in-one.yaml
-```
+kubectl apply -f https://download.elastic.co/downloads/eck/1.5.0/all-in-one.yaml
 
-### Architecture 
+### Configuring StorageClass
+With StorageClass you can describe the "classes" of storage you want to use. Differents classes might map to quality of service levels, backups purpose or any arbitrary policy determined by the administrator. 
+As we are using differents zones and differents hard configuration due to the fact we are using hot/warm/cold architecture, we need to specify a StorageClass for each node and associate it with the proper PersistentVolume.
 
-*6 Kubernetes Nodes (Separeted by node pools & availability three zones)*
-- 3 GKE Instance type (hot): **e2-standard-4	 (4 vCPUs, 16 GB memory)**
-- 3 GKE Instance type (warm): **e2-standard-2   (2 vCPUs, 8 GB memory)**
-
-*9 Elasticsearch instances (Slip by hot & warm and dedicated master)*
-- 3 Elasticsearch hot data node (50Gi SSD disk, 4Gi JVM, 8Gi memory)
-- 3 Elasticsearch warm data node (100Gi disk, 2Gi JVM, 4Gi memory)
-- 3 Elasticsearch master node (10Gi disk, 2Gi JVM, 4Gi memory)
-
-![ECK Architecture](img/architecture.png)
-
-### Overview
-
-Hot-Warm architecture is the powerful way Elasticsearch use to separe hot nodes (the ones that handle hot data/events) and warm nodes (the ones that handle "no frenquency" data) and it's ideal for storing longer retention periods.
-
-On this scenario, we're using Metricbeat as a [Daemonset](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/) to collect metrics of our Kubernetes nodes.
-
-Metricbeat sends events collected to ECK and it's indexed on the hot nodes, after a period of 7 days (In our exemple) these events are move to warm nodes and deleted after 30 days.
-
-We're using two node pools, one to handle/execute Elasticsearch hot nodes and one to handle/execute Elasticsearch warn nodes. 
-Using separed node pools means we can isolate the Kubernetes nodes to run only Elasticsearch workloads (In our case also spared by hot/warm) and it can be done through Kubernetes labels. You don't need to spin up one Kubernetes cluster only to run Elasticsearch, you can use node pools to run & isolate Elasticsearch from your application, it's helpful to segregate resource utilisation. 
-
-Create SAML configmap
-```kubectl create configmap saml-metadata --from-file=../Downloads/framsouza_eu_auth0_com-metadata.xml```
-
-
-### Custom Template
+Here an exemple of StorageClass that will be attached to the PersistentVolume in the hot nodes:
 
 ```
-PUT _template/my-metricbeat
-{
-    "order" : 800,
-    "index_patterns" : [
-      "my-metric*"
-    ],
-    "settings" : {
-      "number_of_shards" : 3,
-      "index.routing.allocation.require.type": "hot",
-      "index.lifecycle.name": "my-metricbeat"
-}
-}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hot-europe-west1-b
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+allowedTopologies:
+- matchLabelExpressions:
+  - key: failure-domain.beta.kubernetes.io/zone
+    values:
+    - europe-west1-b
 ```
 
-## ILM Policy
+Some key points:
+
+*provisioner: kubernetes.io/gce-pd* : it means we are using gce as provider;
+*type: pd-ssd*: - it will provide ssd disks for the volumes attached to this StorageClass;
+*reclaimPolicy: Delete* - it will deletes PersistentVolumeClaim resources if the owning Elasticsearch nodes are scaled down or a deletion;
+*volumeBindingMode: WaitForFirstConsumer* - It will prevent the pod be scheduled, because of affinity settings, on a host where the bound PersistentVolume is not available, *this is a very crucial configuration*;
+*allowedTopologies*: - it will bind your StorageClass with the zone labels (you can use any kind of label)
+
+
+##Create SAML configmap
+Before create the Elasticsearch manifest, we need to create the confimap which content the metadata file of the idp. Remeber that, some idP offer the metadata via URL, on this scenario i will a configmap example to demonstrate how mount it in your deployment. First, create the confimap:
+
+```kubectl create configmap saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml```
+
+## Create Elasticsearch & Kibana resource
+Once you have the saml configmap, you can apply the Elasticsearch & Kibana manifest
 
 ```
-PUT _ilm/policy/my-metricbeat
-{
-  "policy": {
-    "phases": {
-      "hot": {
-        "min_age": "0ms",
-        "actions": {
-          "rollover": {
-            "max_size": "50gb",
-            "max_age": "30d",
-            "max_docs": 100
-          }
-        }
-      },
-      "warm": {
-        "actions": {
-          "allocate": {
-            "number_of_replicas": 2,
-            "include": {},
-            "exclude": {},
-            "require": {
-              "type": "warm"
-            }
-          }
-        }
-      }
-    }
-  }
-}
+kubectl create -f eck-saml-hot-warm-cold.yml && kubectl create -f kibana.yml
 ```
 
-## Admin SAML ES role
-
+It may take a while untill all the resources get ready, but after some minutes you should see something like this:
 ```
-{
-  "admin" : {
-    "cluster" : [
-      "all"
-    ],
-    "indices" : [ ],
-    "applications" : [
-      {
-        "application" : "kibana-.kibana",
-        "privileges" : [
-          "all"
-        ],
-        "resources" : [
-          "*"
-        ]
-      }
-    ],
-    "run_as" : [ ],
-    "metadata" : { },
-    "transient_metadata" : {
-      "enabled" : true
-    }
-  }
-}
+sh-3.2# kubectl get pods
+NAME                             READY   STATUS     RESTARTS   AGE
+elastic-prd-es-cold-zone-b-0     1/1     Running    0          35m
+elastic-prd-es-cold-zone-c-0     1/1     Running    0          35m
+elastic-prd-es-cold-zone-d-0     1/1     Running    0          35m
+elastic-prd-es-hot-zone-b-0      1/1     Running    0          35m
+elastic-prd-es-hot-zone-c-0      1/1     Running    0          35m
+elastic-prd-es-hot-zone-d-0      1/1     Running    0          35m
+elastic-prd-es-master-zone-b-0   1/1     Running    0          35m
+elastic-prd-es-master-zone-c-0   1/1     Running    0          35m
+elastic-prd-es-master-zone-d-0   1/1     Running    0          35m
+elastic-prd-es-warm-zone-b-0     1/1     Running   0          16m
+elastic-prd-es-warm-zone-c-0     1/1     Running    0          16m
+elastic-prd-es-warm-zone-d-0     1/1     Running    0          15m
+kibana-prd-kb-7467b79f54-btzhq   1/1     Running    0          4m8s
 ```
 
-## Tricks
+## Test connection
+At this point you can test the connection via API or exposing Kibana service,
+Grab the elastic password
+```
+kubectl get secret elastic-prd-es-elastic-user -o yaml
+```
 
-Remember to keep at the least one node with the content rule enable if you are going to use Kibana, otherwise you will end up with the following error during Kibana startup:
-```    {
-      "node_id" : "N9AQzsWjSsKvOb3541LUmg",
-      "node_name" : "elastic-prod-es-hot-zone-d-0",
-      "transport_address" : "10.92.12.6:9300",
-      "node_attributes" : {
-        "k8s_node_name" : "gke-eck-hot-warm-cold-archit-hot-pool-33499f95-36pk",
-        "xpack.installed" : "true",
-        "type" : "hot",
-        "zone" : "europe-west1-d",
-        "transform.node" : "false"
-      },
-      "node_decision" : "no",
-      "weight_ranking" : 8,
-      "deciders" : [
-        {
-          "decider" : "data_tier",
-          "decision" : "NO",
-          "explanation" : "index has a preference for tiers [data_content], but no nodes for any of those tiers are available in the cluster"
-        }
-      ]```
+and the ES service name and run the following:
+
+```
+curl -k https://elastic:es-password@es-service-name8:9200/_cluster/health?pretty
+```
+
+You can also expose the Kibana service and try to access it via browser:
+```
+kubectl port-forward svc/kibana-prd-kb-http 5601
+```
+
+### Ingress controller
+
+Deploy the ingress resource:
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.46.0/deploy/static/provider/cloud/deploy.yaml
+```
+
+Before deploy the controller, we need create the ssl certificate, 
+```
+kubectl create secret tls framsouza-cert --key framsouza_co_key.txt --cert framsouza_co.crt
+```
+
+Once the pods are running, you can deploy the ingress controller manifest:
+```
+kubectl create -f ingress.yml
+```

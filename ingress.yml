@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+  name: ingress
+spec:
+  tls:
+      - hosts:
+          - framsouza.co
+        secretName: framsouza-cert
+  rules:
+    - host: framsouza.co
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: kibana-prd-kb-http
+              servicePort: 5601
+          - path: /elasticsearch
+            backend:
+              serviceName: elastic-prd-es-http
+              servicePort: 9200

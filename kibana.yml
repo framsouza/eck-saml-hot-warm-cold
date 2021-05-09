@@ -1,0 +1,17 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana-prd
+spec:
+  version: 7.12.1
+  count: 1
+  elasticsearchRef:
+    name: elastic-prd
+    namespace: default
+  config:
+    xpack.security.authc.providers:
+      saml.saml1:
+        order: 0
+        realm: "saml1"
+      basic.basic1:
+        order: 1

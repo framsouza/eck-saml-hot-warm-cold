@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: es-config-job
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: es-config-job
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-elasticearch
+          image: alpine
+          command:
+            [
+              "sh",
+              "-c",
+              "for i in $(seq 1 300); do nc -zvw1 elastic-prd-es-http 9200 && exit 0 || sleep 3; done; exit 1",
+            ]
+      containers:
+        - name: es-config-job
+          image: appropriate/curl
+          env:
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-prd-es-elastic-user
+                  key: elastic
+            - name: ELASTICSEARCH_SERVICE
+              value: elastic-prd-es-http
+          command:
+            - /bin/sh
+            - -c
+            - |
+              curl -v -k -u elastic:$ELASTICSEARCH_PASSWORD -X PUT https://$ELASTICSEARCH_SERVICE:9200/_security/role/admin?pretty -H 'Content-Type: application/json' -d '
+              {
+                  "cluster" : [
+                    "all"
+                  ],
+                  "indices" : [ ],
+                  "applications" : [
+                    {
+                      "application" : "kibana-.kibana",
+                      "privileges" : [
+                        "all"
+                      ],
+                      "resources" : [
+                        "*"
+                      ]
+                    }
+                  ],
+                  "run_as" : [ ],
+                  "metadata" : { },
+                  "transient_metadata" : {
+                    "enabled" : true
+                  }
+                }
+              '
+              curl -v -k -u elastic:$ELASTICSEARCH_PASSWORD -X PUT https://$ELASTICSEARCH_SERVICE:9200/_security/role_mapping/saml-kibana?pretty -H 'Content-Type: application/json' -d '
+              {
+                "roles": [ "admin" ], 
+                "enabled": true,
+                "rules": {
+                  "field": { "realm.name": "saml1" }
+                }
+              }
+                            '

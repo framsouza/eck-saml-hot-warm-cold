@@ -1,0 +1,1250 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elastic-prd
+spec:
+  version: 7.12.1
+  http:
+    service:
+      metadata:
+        annotations:
+          elasticsearch.k8s.elastic.co/node-master: "false"
+      spec:
+        type: LoadBalancer
+  nodeSets:
+  - name: hot-zone-b
+    count: 1
+    config:
+      node.attr.zone: europe-west1-b	
+      node.attr.type: hot
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      http.max_content_length: 200mb
+      node.roles: [ data_hot, data_content ]
+      node.store.allow_mmap: false
+      xpack.security.authc.token.enabled: true
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: sc-zone-b
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: hot
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - "europe-west1-b"
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: "kubernetes.io/hostname"
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms4g -Xmx4g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 8Gi
+              cpu: 200m
+            limits:
+              memory: 8Gi
+              cpu: 200m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+        - name: sysctl
+          securityContext:
+            privileged: true
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+  - name: hot-zone-c
+    count: 1
+    config:
+      node.attr.zone: europe-west1-c
+      node.attr.type: hot
+      http.max_content_length: 200mb
+      node.roles: [ data_hot, data_content ]
+      node.store.allow_mmap: false
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: sc-zone-c
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: hot
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-c
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms4g -Xmx4g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 8Gi
+              cpu: 200m
+            limits:
+              memory: 8Gi
+              cpu: 200m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: hot-zone-d
+    count: 1
+    config:
+      node.attr.zone: europe-west1-d
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.attr.type: hot
+      http.max_content_length: 200mb
+      node.roles: [ data_hot, data_content ]
+      node.store.allow_mmap: false
+      xpack.security.authc.token.enabled: true
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: sc-zone-d
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: hot
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-d
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms4g -Xmx4g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 8Gi
+              cpu: 200m
+            limits:
+              memory: 8Gi
+              cpu: 200m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: warm-zone-b
+    count: 1
+    config:
+      node.attr.zone: europe-west1-b
+      node.attr.type: warm
+      http.max_content_length: 200mb
+      node.roles: data_warm
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: sc-zone-b
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: warm
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-b
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms2g -Xmx2g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 4Gi
+              cpu: 100m
+            limits:
+              memory: 4Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: warm-zone-c
+    count: 1
+    config:
+      node.attr.zone: europe-west1-c
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.attr.type: warm
+      http.max_content_length: 200mb
+      node.roles: data_warm
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: sc-zone-c
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: warm
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-c
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms2g -Xmx2g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 4Gi
+              cpu: 100m
+            limits:
+              memory: 4Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: warm-zone-d
+    count: 1
+    config:
+      node.attr.zone: europe-west1-d
+      node.attr.type: warm
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      http.max_content_length: 200mb
+      node.roles: data_warm
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: sc-zone-d
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: warm
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-d
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms2g -Xmx2g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 4Gi
+              cpu: 100m
+            limits:
+              memory: 4Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: cold-zone-b
+    count: 1
+    config:
+      node.attr.zone: europe-west1-b
+      node.attr.type: cold
+      http.max_content_length: 200mb
+      node.roles: data_cold
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+        storageClassName: sc-zone-b
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: cold
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-b
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: cold-zone-c
+    count: 1
+    config:
+      node.attr.zone: europe-west1-c
+      node.attr.type: cold
+      http.max_content_length: 200mb
+      node.roles: data_cold
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+        storageClassName: sc-zone-c
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: cold
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-c
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: cold-zone-d
+    count: 1
+    config:
+      node.attr.zone: europe-west1-d
+      node.attr.type: cold
+      http.max_content_length: 200mb
+      node.roles: data_cold
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+        storageClassName: sc-zone-d
+    podTemplate:
+      spec:
+        nodeSelector:
+          type: cold
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-d
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prod
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: master-zone-b
+    count: 1
+    config:
+      node.attr.zone: europe-west1-b
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      http.max_content_length: 200mb
+      node.ml: false
+      node.data: false
+      node.master: true
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: sc-zone-b
+    podTemplate:
+      spec:
+      spec:
+        nodeSelector:
+          type: hot
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-b
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prod
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: master-zone-c
+    count: 1
+    config:
+      node.attr.zone: europe-west1-c
+      http.max_content_length: 200mb
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.ml: false
+      node.master: true
+      node.data: false
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: sc-zone-c
+    podTemplate:
+      spec:
+      spec:
+        nodeSelector:
+          type: hot
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-c
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prod
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  - name: master-zone-d
+    count: 1
+    config:
+      node.attr.zone: europe-west1-d
+      cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      http.max_content_length: 200mb
+      node.ml: false
+      node.data: false
+      node.master: true
+      node.store.allow_mmap: false
+      xpack:
+        security:
+          authc:
+            realms:
+              native:
+                native1:
+                  enabled: true
+                  order: 0
+              file:
+                file1:
+                  enabled: true
+                  order: 1
+              saml:
+                saml1:
+                  attributes.principal: nameid
+                  idp.entity_id: urn:framsouza.eu.auth0.com
+                  idp.metadata.path: /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+                  order: 2
+                  sp.acs: https://framsouza.co/api/security/v1/saml
+                  sp.entity_id: https://framsouza.co
+                  sp.logout: https://framsouza.co/logout
+      xpack.security.authc.token.enabled: true
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: sc-zone-d
+    podTemplate:
+      spec:
+      spec:
+        nodeSelector:
+          type: hot
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: failure-domain.beta.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - europe-west1-d
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prod
+              topologyKey: kubernetes.io/hostname
+        containers:
+        - name: elasticsearch
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          - name: READINESS_PROBE_TIMEOUT
+            value: "10"
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 100m
+          volumeMounts:
+          - name: saml-metadata
+            mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
+            subPath: framsouza_eu_auth0_com-metadata.xml
+            readOnly: false
+        volumes:
+        - name: saml-metadata
+          configMap:
+            name: saml-metadata
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 12
+            successThreshold: 1
+            timeoutSeconds: 12
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+            bin/elasticsearch-plugin install --batch repository-gcs
+          name: install-plugins
+  updateStrategy:
+    changeBudget:
+      maxSurge: 1
+      maxUnavailable: 1
+  podDisruptionBudget:
+    spec:
+      minAvailable: 2
+      selector:
+        matchLabels:
+          elasticsearch.k8s.elastic.co/cluster-name: elastic-prd

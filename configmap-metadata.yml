@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: saml-metadata
+data:
+  saml-metadata: |
+ <EntityDescriptor entityID="urn:framsouza.eu.auth0.com" xmlns="urn:oasis:names:tc:SAML:2.0:metadata">
+  <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <KeyDescriptor use="signing">
+      <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+        <X509Data>
+          <X509Certificate>MIIDBzCCAe+gAwIBAgIJQ64JxUj6O6ccMA0GCSqGSIb3DQEBCwUAMCExHzAdBgNVBAMTFmZyYW1zb3V6YS5ldS5hdXRoMC5jb20wHhcNMjEwNDI4MTU0ODQyWhcNMzUwMTA1MTU0ODQyWjAhMR8wHQYDVQQDExZmcmFtc291emEuZXUuYXV0aDAuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy/4XhfzeI1kr0JAlB5QizzDusloHajeVy/As3LdFYt+gUnjh1ujdTpLcWpLsWoeQNj9FIufc3Q01p+oK07uSkz9WYQU9uEpl0J/l37iuWa8Ms0v05DB/QZEJ2ol33JvnOpRyXpskzQUko0ageuxVYqCCSagQNnZHUYcVsYnfOWZEDfNV2Y2yS9K0SaHlIcSPlyPCgkup/ryT87dnWcN83IcKb2iWQs9Zyc9lxN1paIM4VVKYaSM37PzFR7G5MtI/1AvVyjC7exQBEV7fyBfk9w5TQFTnv4mSvQUxxPik7r5sXY6WQqztG7N7IVQXE29W6HbqrLFPfuc5sGA20aeGeQIDAQABo0IwQDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRV2+Yj7XGsz6cwsuOBQwViN/1/lDAOBgNVHQ8BAf8EBAMCAoQwDQYJKoZIhvcNAQELBQADggEBAJQdOhpaRV0NTgI7y7yqPE2/IzaqKxIoYZ6ais4kTEtPn/qmDR+rsA8NCRT7RCTMe3/V4Wo5/cwlQdjuAZIEe3zuL835ehxkuZYy4vhMZSmVhuR6nG/dQjC1IVZyNOHwwopX4MemwTR8gCoqZZpxOji2etvcT1UHx/lW5MrzVs7fqX3vNvKYY4k/Mxb1du2RP+bgZF9iEXWvuLA00rkMUAfbngM68lVhkqlq7BgvIQzaM+W5FH4tz1hSWx8MpUzJ+hg6p5r0Jw1E7YHTPpWNVhi6vNNAhz173SxioEZJ8cE2aIeUM85FqYRIJ6/Dbc997TvESVPXhz0R7LwaNllQOmE=</X509Certificate>
+        </X509Data>
+      </KeyInfo>
+    </KeyDescriptor>
+    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://framsouza.eu.auth0.com/samlp/nbNudmA4FTPI3kO6im0o5KPV3gugxxQI/logout"/>
+    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://framsouza.eu.auth0.com/samlp/nbNudmA4FTPI3kO6im0o5KPV3gugxxQI/logout"/>
+    <NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</NameIDFormat>
+    <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</NameIDFormat>
+    <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</NameIDFormat>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://framsouza.eu.auth0.com/samlp/nbNudmA4FTPI3kO6im0o5KPV3gugxxQI"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://framsouza.eu.auth0.com/samlp/nbNudmA4FTPI3kO6im0o5KPV3gugxxQI"/>
+    <Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="E-Mail Address" xmlns="urn:oasis:names:tc:SAML:2.0:assertion"/>
+    <Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="Given Name" xmlns="urn:oasis:names:tc:SAML:2.0:assertion"/>
+    <Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="Name" xmlns="urn:oasis:names:tc:SAML:2.0:assertion"/>
+    <Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="Surname" xmlns="urn:oasis:names:tc:SAML:2.0:assertion"/>
+    <Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="Name ID" xmlns="urn:oasis:names:tc:SAML:2.0:assertion"/>
+  </IDPSSODescriptor>
+</EntityDescriptor>
