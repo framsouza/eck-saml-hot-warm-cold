@@ -25,15 +25,6 @@ spec:
       xpack:
         security:
           authc:
-            realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -131,14 +122,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -233,14 +216,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -334,14 +309,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -435,14 +402,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -536,14 +495,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -637,14 +588,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -738,14 +681,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -839,14 +774,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -941,14 +868,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -1044,14 +963,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -1147,14 +1058,6 @@ spec:
         security:
           authc:
             realms:
-              native:
-                native1:
-                  enabled: true
-                  order: 0
-              file:
-                file1:
-                  enabled: true
-                  order: 1
               saml:
                 saml1:
                   attributes.principal: nameid

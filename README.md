@@ -3,11 +3,14 @@
 This doc will guide you setup a SAML with auth0 as idp using a hot/warm/cold artechicture with ECK, the purpose of this project is to use production features like: **dedicated nodes, zone awareness, pod & node affinity, podDisruption & dedicated storage class**. If you are interested to know more about it in deep you should check the [ECK](https://github.com/framsouza/eck) article. Also you should be familiar with how [SAML](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/saml-guide-stack.html) works.
 
 ### Scenario
-In this scenario let's deploy ECK to handle application logging along wtih a ceentralized way to authenticate into Kibana using auth0. As logging data (time-series) has a predictable time of life, we can use hot, warm & cold architecture to have a better way to deal with your data over time.
+In this scenario we will deploy ECK to handle application logging along wtih a centralized way to authenticate into Kibana using auth0. As logging data (time-series) has a predictable time of life, we can use hot, warm & cold architecture to have a better way to deal with your data over time.
 
 We will deploy the following resources:
+
 - ECK Operator
+- StorageClass
 - Elasticsearch
+- Elasticsearch role Job
 - Kibana
 - Ingress Controller
 - ConfigMap SAML metadata
@@ -34,7 +37,7 @@ We are using GKE to setup this environment, with the following configurations:
 
 *GKE zones*: _europe-west1-b_, _europe-west1-c_, _europe-west1-d_
 
-For each node pool we are using an especific Kubernetes label to be able to attach the Elasticsearch instance into the right hard configuration. The label name is called "type" and the values are: hot, warm or cold. Remember, it's allowed to change & add the label later, to do that you must use the [command line][https://cloud.google.com/kubernetes-engine/docs/how-to/update-existing-nodepools#updating_node_labels], this is not possible via Console UI.
+For each node pool we are using an especific Kubernetes label to be able to attach the Elasticsearch instance into the right hard configuration. The label name is called "type" and the values are: hot, warm or cold. Remember, it's allowed to change & add the label later, to do that you must use the [command line](https://cloud.google.com/kubernetes-engine/docs/how-to/update-existing-nodepools#updating_node_labels).
 
 ## Doc structure
 The doc is splitted into 2 parts:
@@ -89,7 +92,7 @@ This session is the SAML configuration, first you should follow this [guide][htt
 - *sp.entity_id:* is the SAML EntityID of our Service Provider.
 - *sp.logout:* is the SingleLogout endpoint where the Service Provider is listening for incoming SAML LogoutResponse and LogoutRequest messages
 
-Keep in mind the sp.* configurations must point to Kibana endpoint and the idp.* settings you must collect from your Identity Provider. Also the SAML metadata is stored in a ConfigMap and mounted as a Volume inside Elasticsearch. Your idp also may provide the metadata via HTTP, in this case, auth0 provide the metadata file via HTTP but the purpose is to show you can use mount (any kind of ConfigMap or Secret) as a volume inside Elasticsearch pods.
+Keep in mind the sp.* configurations must point to Kibana endpoint and the idp.* settings you must collect from your Identity Provider. Also the SAML metadata is stored in a ConfigMap and mounted as a Volume inside Elasticsearch. The idp also may provide the metadata via HTTP, in this case, auth0 provide the metadata file via HTTP but the purpose is show to you how to mount configMap (or secret) as a volume into Elasticsearch pods.
 
 ### volumeClaimTemplates
 
@@ -106,7 +109,7 @@ Keep in mind the sp.* configurations must point to Kibana endpoint and the idp.*
         storageClassName: sc-zone-b
 ```
 
-Our hot node will have a 50Gi available of disk and this disk refers to the storage class called *sc-zone-b*, this is the space available to store shards on this instance.
+The hot node will have a 50Gi available of disk and this disk refers to the storage class called *sc-zone-b*, this is the space available to store shards on this instance.
 
 ### Node Affinity & Pod Affinity
 
@@ -303,8 +306,7 @@ Some key points:
 - *allowedTopologies*: - it will bind your StorageClass with the zone labels (you can use any kind of label)
 
 
-##Create SAML configmap
-Before create the Elasticsearch manifest, we need to create the confimap which content the metadata file of the idp. Remeber that, some idP offer the metadata via URL, on this scenario i will a configmap example to demonstrate how mount it in your deployment. First, create the confimap:
+## Create SAML configmap
 
 ```kubectl create configmap saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml```
 
@@ -334,11 +336,12 @@ elastic-prd-es-warm-zone-d-0     1/1     Running    0          15m
 kibana-prd-kb-7467b79f54-btzhq   1/1     Running    0          4m8s
 ```
 
-Once you have all the pods runnings, there's a [Job](https://github.com/framsouza/eck-saml-hot-warm-cold/blob/main/es-config-job.yml) you must run in order to create the SAML rolling mapping and give the right permission, you can also create the [role & rolling mapping](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/saml-guide-stack.html#saml-role-mapping) via Kibana DevTools or curl.
-If you try to access Kibana SAML configuration without run this Job (It will spin up a container, execute the API and kill the pod) you will get a permission error.
+Once you have all the pods runnings, there's a [Job](https://github.com/framsouza/eck-saml-hot-warm-cold/blob/main/es-config-job.yml) you must run in order to create the SAML rolling mapping and give the right permission to the user who will login using SAML, you can also create the [role & rolling mapping](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/saml-guide-stack.html#saml-role-mapping) via Kibana DevTools or curl.
+If you try to access Kibana SAML configuration without run this Job you will get a permission error. In summary, the job will spin up a container, execute the API calls and kill the pod.
 
 ## Test connection
-At this point you can test the connection via API or exposing Kibana service,
+At this point you can test the connection via curk or exposing Kibana service.
+
 Grab the elastic password
 ```
 kubectl get secret elastic-prd-es-elastic-user -o yaml
@@ -374,4 +377,8 @@ kubectl create -f ingress.yml
 ```
 
 In this example, I have a domain called framsouza.co & a valid certificate, remeber to adjust these settings.
+
+And with that, we can access Elasticsearch using our own domain with our on tls certificate, this also covers the most important features to run an ECK environment in a production environment.
+
+Cheers,
 
