@@ -83,7 +83,7 @@ Then we are explicitly saying this node will have the data_hot & data_content ro
                   sp.logout: https://framsouza.co/logout
 ```
 
-This session is the SAML configuration, first you should follow this [guide][https://auth0.com/docs/protocols/saml-protocol/configure-auth0-as-saml-identity-provider#configure-auth0-as-idp] to configure auth0 as idp and the get the metadata file and the idp.* settings.
+This session is the SAML configuration, first you should follow this [guide](https://auth0.com/docs/protocols/saml-protocol/configure-auth0-as-saml-identity-provider#configure-auth0-as-idp) to configure auth0 as idp and the get the metadata file and the idp.* settings.
 
 - *attributes.principal:*  defines which SAML attribute is going to be mapped to the principal (username) of the authenticated user in Kibana
 - *idp.entity_id:* is the SAML EntityID of your Identity Provider (you can get it on SAML metadata file)
@@ -171,11 +171,11 @@ The JVM configuration is defined via environment variable, this container will h
             name: saml-metadata
 ```
 
-The *volumeMounts* session is where contains where the volume should be mounted inside the pod. In this example, you are mounting a volume saml-metadata and the file is located into ES_CONFIG directory _/usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml_. Next, there's the volume reference, it means the volume must be mounted based in a configMap called saml-metadata.
+The *volumeMounts* session is where contains where the volume should be mounted inside the pod. In this example, you are mounting a volume saml-metadata and the file is located into _ES_CONFIG_ directory _/usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml_. Next, there's the volume reference, it means the volume must be mounted based in a configMap called saml-metadata.
 
 ### Creating a configMap
 
-*You must create this file before the deploy ES manifest*
+*You must create this file before the ES manifest*
 
 The metadata file, is the file you will get fromo your idp. To put the content inside a configMap you can run the following:
 
@@ -261,17 +261,19 @@ These are the session from one node, the rest of the nodes configuration is basi
 # How to
 ### Install ECK
 
-First you need to setup google cloud RBAC running the following command:
+First let's setup google cloud RBAC by running the following command:
 
 ```
 kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
 ```
 
-Now, you're able to deploy the operator:
+Now is time to the ECK operator:
 
 ```
 kubectl apply -f https://download.elastic.co/downloads/eck/1.5.0/all-in-one.yaml
 ```
+
+It will create the ECK Operator pod and the cluster permissions into the namespace _elastic-system_.
 
 ### Configuring StorageClass
 With StorageClass you can describe the "classes" of storage you want to use. Differents classes might map to quality of service levels, backups purpose or any arbitrary policy determined by the administrator. 
@@ -379,6 +381,10 @@ kubectl create -f ingress.yml
 In this example, I have a domain called framsouza.co & a valid certificate, remeber to adjust these settings.
 
 And with that, we can access Elasticsearch using our own domain with our on tls certificate, this also covers the most important features to run an ECK environment in a production environment.
+
+
+
+
 
 Cheers,
 
