@@ -1,12 +1,9 @@
-# Configuring SAML with a hot-warm-cold architecture using ECK
-
-This doc will guide you setup a SAML with auth0 as idp using a hot/warm/cold artechicture with ECK, the purpose of this project is to use production features like: **dedicated nodes, zone awareness, pod & node affinity, podDisruption & dedicated storage class**. If you are interested to know more about it in deep you should check the [ECK](https://github.com/framsouza/eck) article. Also you should be familiar with how [SAML](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/saml-guide-stack.html) works.
+This document explains how to set up SAML with auth0 as idp using a hot/warm/cold artechicture with ECK. The purpose of this project is to use production features such as dedicated nodes, zone awareness, pod and node affinity, podDisruption and dedicated storage class. To know more, check this ECK article. Also, you should be familiar with SAML.
 
 ### Scenario
-In this scenario we will deploy ECK to handle application logging along wtih a centralized way to authenticate into Kibana using auth0. As logging data (time-series) has a predictable time of life, we can use hot, warm & cold architecture to have a better way to deal with your data over time.
+In this scenario we deploy ECK to handle application logging along with a centralized way to authenticate into Kibana using auth0. As logging data (time-series) has a predictable time of life, we can use hot, warm and cold architecture to better deal with your data over time.
 
 We will deploy the following resources:
-
 - ECK Operator
 - StorageClass
 - Elasticsearch
@@ -15,60 +12,61 @@ We will deploy the following resources:
 - Ingress Controller
 - ConfigMap SAML metadata
 
-### Architecture 
+### Architecture
 
-We are using GKE to setup this environment, with the following configurations:
+To set up this environment, we use GKE with the following configurations:
 
-*3 Nodes pools*
-- 1 Hot Node Pool wtih 6 Kubernetes instances running spread across 3 availabilty zones;;
-- 1 Warm Node Pool with Kubernetes instances running spread across 3 availabilty zones;;
-- 1 Cold Node Pool with Kubernetes instances running spread across 3 availabilty zones;;
+_3 Nodes pools_
+- 1 Hot Node Pool wtih 6 Kubernetes instances running spread across 3 availability zones
+- 1 Warm Node Pool with Kubernetes instances running spread across 3 availability zones
+- 1 Cold Node Pool with Kubernetes instances running spread across 3 availability zones
 
-*Instances configuration*
-- hot nodes: **c2-standard-4    (4 vCPUs, 16 GB memory, 100GB disk)**
-- warm nodes: **e2-standard-2   (2 vCPUs, 8 GB memory, 100GB disk)**
-- cold nodes: **e2-standard-2   (2 vCPUs, 8 GB memory, 100GB disk)**
+_Instances configuration_
+- hot nodes: c2-standard-4 (4 vCPUs, 16 GB memory, 100GB disk)
+- warm nodes: e2-standard-2 (2 vCPUs, 8 GB memory, 100GB disk)
+- cold nodes: e2-standard-2 (2 vCPUs, 8 GB memory, 100GB disk)
 
-*9 Elasticsearch instances (Split by hot & warm, cold and dedicated master)* plus 1 Kibana instance*
+_9 Elasticsearch instances (Split by hot and warm, cold and dedicated master) plus 1 Kibana instance*_
 - 3 Elasticsearch hot data node (50Gi SSD disk, 4Gi JVM, 8Gi memory)
 - 3 Elasticsearch warm data node (100Gi disk, 2Gi JVM, 4Gi memory)
 - 3 Elasticsearch cold data node (100Gi disk, 2Gi JVM, 4Gi memory)
 - 3 Elasticsearch master node (10Gi disk, 1Gi JVM, 2Gi memory)
 
-*GKE zones*: _europe-west1-b_, _europe-west1-c_, _europe-west1-d_
+_GKE zones: europe-west1-b, europe-west1-c, europe-west1-d_
 
-For each node pool we are using an especific Kubernetes label to be able to attach the Elasticsearch instance into the right hard configuration. The label name is called "type" and the values are: hot, warm or cold. Remember, it's allowed to change & add the label later, to do that you must use the [command line](https://cloud.google.com/kubernetes-engine/docs/how-to/update-existing-nodepools#updating_node_labels).
+For each node pool we use a specific Kubernetes label to attach the Elasticsearch instance into the right hard configuration. The label name is called "type" and the values are: hot, warm or cold. You can change and add the label later by using the command line.
 
-## Doc structure
-The doc is splitted into 2 parts:
+### This document contains two parts:
+- Manifest explanation
+- How to setup
 
-1. Manifest explanation
-2. How to
-
-# Manifest explanation
-The elasticsearch manifest file [eck-saml-hot-warm-cold.yml](https://github.com/framsouza/eck-saml-hot-warm-cold/blob/main/eck-saml-hot-warm-cold.yml) is where you will find the Elasticsearch settings.
+## Manifest explanation
+The Elasticsearch manifest file eck-saml-hot-warm-cold.yml contains the Elasticsearch settings.
 
 ### nodeSets:
-
 ```
-  nodeSets:
+ nodeSets:
   - name: hot-zone-b
     count: 1
     config:
-      node.attr.zone: europe-west1-b	
+      node.attr.zone: europe-west1-b
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
       node.store.allow_mmap: false
 ```
 
-It means we have *1* node called *hot-zone-b* and it will be deployed at zone *europe-west1-b*, then we are defining two routing awareness _k8s_node_name_ & _zone_, _k8s_node_name_ ensures that Elasticsearch allocates primary and replica shards to pods running on different Kubernetes nodes and never to pods that are scheduled onto a single Kubernetes node, and _zone_ uses the Kubernetes label called _domain.beta.kubernetes.io/zone_ and it will ensure the cluster will redirect the shards according to these settings.
-Then we are explicitly saying this node will have the data_hot & data_content role. Last but not the least, _node.store.allow_mmap : false_ will prevent the vritual address space (on Linux distribution) ro run into errors/exceptions due to the fact this default configuration is too low. 
+We have one node called hot-zone-b deployed at zone europe-west1-b. Then, we define two routing awareness attributes:
+_k8s_node_name_: Makes sure that Elasticsearch allocates primary and replica shards to pods running on different Kubernetes nodes and never to pods that are scheduled onto a single Kubernetes node.
+
+_zone_: Uses the Kubernetes label called domain.beta.kubernetes.io/zone and it makes sure that the cluster will redirect the shards according to these settings.
+
+We explicitly say that this node will have _data_hot_ and _data_content_ role. 
+Finally, _node.store.allow_mmap : false_ will prevent the virtual address space (on Linux distribution) ro run into errors or exceptions because this default configuration is too low.
 
 ### xpack.security
-
 ```
-      xpack:
+     xpack:
         security:
           authc:
             realms:
@@ -83,21 +81,20 @@ Then we are explicitly saying this node will have the data_hot & data_content ro
                   sp.logout: https://framsouza.co/logout
 ```
 
-This session is the SAML configuration, first you should follow this [guide](https://auth0.com/docs/protocols/saml-protocol/configure-auth0-as-saml-identity-provider#configure-auth0-as-idp) to configure auth0 as idp and the get the metadata file and the idp.* settings.
+This is the SAML configuration. You should follow this guide to configure auth0 as idp and then get the metadata file and the idp.* settings.
 
-- *attributes.principal:*  defines which SAML attribute is going to be mapped to the principal (username) of the authenticated user in Kibana
-- *idp.entity_id:* is the SAML EntityID of your Identity Provider (you can get it on SAML metadata file)
-- *idp.metadata.path:*  is the the file path or the https URL where your Identity Provider metadata is available, here I am using a file to demonstrate how to mount a volume
-- *sp.acs:* is the Assertion Consumer Service URL where Kibana is listening for incoming SAML messages.
-- *sp.entity_id:* is the SAML EntityID of our Service Provider.
-- *sp.logout:* is the SingleLogout endpoint where the Service Provider is listening for incoming SAML LogoutResponse and LogoutRequest messages
+- attributes.principal: Defines which SAML attribute is going to be mapped to the principal (username) of the authenticated user in Kibana
+- idp.entity_id: Is the SAML EntityID of your Identity Provider (you can get it on SAML metadata file)
+- idp.metadata.path: Is the file path or the HTTPs URL where your Identity Provider metadata is available. In this example,, we use a file to demonstrate how to mount a volume
+- sp.acs: Is the Assertion Consumer Service URL where Kibana is listening for incoming SAML messages.
+- sp.entity_id: Is the SAML EntityID of our Service Provider.
+- sp.logout: Is the SingleLogout endpoint where the Service Provider is listening for incoming SAML LogoutResponse and LogoutRequest messages
 
-Keep in mind the sp.* configurations must point to Kibana endpoint and the idp.* settings you must collect from your Identity Provider. Also the SAML metadata is stored in a ConfigMap and mounted as a Volume inside Elasticsearch. The idp also may provide the metadata via HTTP, in this case, auth0 provide the metadata file via HTTP but the purpose is show to you how to mount configMap (or secret) as a volume into Elasticsearch pods.
+Keep in mind the **sp.*** configurations must point to Kibana endpoint and the **idp.*** settings you must collect from your Identity Provider. Also, the SAML metadata is stored in a ConfigMap and mounted as a Volume inside Elasticsearch. The idp also may provide the metadata via HTTP, in this case, auth0 provides the metadata file via HTTP but the purpose is to show to you how to mount configMap (or secret) as a volume into Elasticsearch pods.
 
 ### volumeClaimTemplates
-
 ```
-    volumeClaimTemplates:
+   volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
       spec:
@@ -109,12 +106,11 @@ Keep in mind the sp.* configurations must point to Kibana endpoint and the idp.*
         storageClassName: sc-zone-b
 ```
 
-The hot node will have a 50Gi available of disk and this disk refers to the storage class called *sc-zone-b*, this is the space available to store shards on this instance.
+The hot node will have a 50Gi available of disk which refers to the storage class called sc-zone-b, this is the space available to store shards on this instance.
 
-### Node Affinity & Pod Affinity
-
+### Node and Pod affinity
 ```
-    podTemplate:
+   podTemplate:
       spec:
         nodeSelector:
           type: hot
@@ -134,14 +130,14 @@ The hot node will have a 50Gi available of disk and this disk refers to the stor
                   elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
               topologyKey: "kubernetes.io/hostname"
 ```
-The affinity feature restrict scheduling pods in a group of Kubernetes nodes based on labels. Node affinity is conceptually similar to nodeSelector that defines which node the pod will be scheduled based on the label. *nodeAffinity* greatly extends the types of constrains you can express using enhancements labels. *podAntiAffinity* will prevent scheduling Elasticsearch nodes on the same host. 
 
-podAffinity & nodeAffinity are using requiredDuringSchedulingIgnoredDuringExecution affinity type. That means, a hard limit that rules must be met for a pod to be scheduled in a node. In this example, we're defining the following: "only run the pod on nodes in the  zone europe-west1-b". The _nodeSelector_ will be match with the Kubernetes Label you are using at the node, in this case _type: hot_.
+The affinity feature restricts scheduling pods in a group of Kubernetes nodes based on labels. Node affinity is conceptually similar to nodeSelector that defines which node the pod will be scheduled based on the label. _nodeAffinity_ greatly extends the types of constraints you can express using enhancements labels. podAntiAffinity will prevent scheduling Elasticsearch nodes on the same host.
+
+_podAffinity & nodeAffinity_ are using _requiredDuringSchedulingIgnoredDuringExecution_ affinity type. That means, a hard limit that rules must be met for a pod to be scheduled in a node. In this example, we're defining the following: "only run the pod on nodes in the zone europe-west1-b". The nodeSelector will be matched with the Kubernetes Label you are using at the node, in this case type: hot.
 
 ### Containers definition
-
 ```
-        containers:
+       containers:
         - name: elasticsearch
           env:
           - name: ES_JAVA_OPTS
@@ -157,12 +153,11 @@ podAffinity & nodeAffinity are using requiredDuringSchedulingIgnoredDuringExecut
               cpu: 200m
 ```
 
-The JVM configuration is defined via environment variable, this container will have 4GB of heap space. Pay attention in keep  request & limit with the same value to minimize disruption caused by pod evictions due a resources utilization. In this example this node has 8Gi of memory and 200m cpu.
+The JVM configuration is defined via environment variables, this container will have 4GB of heap space.  Keep request and limit with the same value to minimize disruption caused by pod evictions due a resources utilization. In this example, this node has 8Gi of memory and 200m CPU.
 
 ### Volume SAML metadata
-
 ```
-          volumeMounts:
+         volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
         volumes:
@@ -171,40 +166,37 @@ The JVM configuration is defined via environment variable, this container will h
             name: saml-metadata
 ```
 
-The *volumeMounts* session is where contains where the volume should be mounted inside the pod. In this example, you are mounting a volume saml-metadata and the file is located into _ES_CONFIG_ directory _/usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml_. Next, there's the volume reference, it means the volume must be mounted based in a configMap called saml-metadata.
+The volumeMounts session is where the volume should be mounted inside the pod. In this example, you are mounting a volume saml-metadata and the file is located in ES_CONFIG directory _/usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml_. Then, volumes means the volume must be mounted according to a configMap called saml-metadata.
 
 ### Creating a configMap
+You must create this file before the ES manifest.
 
-*You must create this file before the ES manifest*
+You get the metadata file from your idp. To put the content inside a configMap you can run the following:
 
-The metadata file, is the file you will get fromo your idp. To put the content inside a configMap you can run the following:
+`kubectl create configmap saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml
+`
 
-```
-kubectl create configmap saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml
-```
-
-Remeber to adjust the file location.
+Remember to adjust the file location.
 
 Easy, right?
 
 If you want to use a secret instead, the manifest should have something like this:
-
 ```
-          volumeMounts:
+         volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
         volumes:
         - name: saml-metadata
           secret:
             secretnNme: saml-metadata
-
-kubectl create secret generic saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml
 ```
+
+`kubectl create secret generic saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml
+`
 
 ### redinessProbe
-
 ```
-          readinessProbe:
+         readinessProbe:
             exec:
               command:
               - bash
@@ -220,9 +212,8 @@ kubectl create secret generic saml-metadata --from-file=../framsouza_eu_auth0_co
 Readiness probe is used to know when a container is ready to start accepting traffic. Here we are increasing the timeout to 10 seconds. The default value is 3 seconds.
 
 ### initContainer
-
 ```
-        initContainers:
+       initContainers:
         - command:
           - sh
           - -c
@@ -235,14 +226,13 @@ Readiness probe is used to know when a container is ready to start accepting tra
           command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
 ```
 
-To install or perform any task at the operational system level before Elasticsearch starts, you should use initContainer. In this example we are installing the GCS repository where we can use to send the indices snapshots.
-Next the sysctl container, will increase the mmapfs, that is some operational system is too low by default, which may result in out of memory exception. Bothe container will run and killed before Elasticsearch starts.
+To install or perform any task at the operational system level before Elasticsearch starts, you should use _initContainer_. In this example, we are installing the GCS repository where we can send the indices snapshots.
 
+Next, the sysctl container will increase the mmapfs, that is some operational system is too low by default, which may result in out-of-memory exception. The container will run and be killed before Elasticsearch starts.
 
-These are the session from one node, the rest of the nodes configuration is basically the same, except by the name & zone & storageClass name. At the end of the file, you you see the following setting (which applies to the whole cluster):
-
+These are the sessions from one node. The rest of the node configuration is basically the same, except for the name, zone, and _storageClass_ name. At the end of the file, you see the following setting (which applies to the whole cluster):
 ```
-  updateStrategy:
+ updateStrategy:
     changeBudget:
       maxSurge: 1
       maxUnavailable: 1
@@ -254,33 +244,29 @@ These are the session from one node, the rest of the nodes configuration is basi
           elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
 ```
 
-*updateStrategy* control the number of simultaneous changes in the Elasticsearch cluster. maxSurge: 1 means only one new Pod is created at a time. After the first new Pod is Ready, an old Pod is killed and the second new Pod is created. Where maxSurge determines how many new Pods to create, maxUnavailable determines how many old Pods to kill. In this case, we can only kill 1 old Pod at a time. This ensures the capacity is always at least 3 - 1 Pods. If this is not enough for your environment configuration, you can disable the podDisruption and configure your own.
+_updateStrategy_ controls the number of simultaneous changes in the Elasticsearch cluster. maxSurge: 1 means only one new Pod is created at a time. After the first new Pod is Ready, an old Pod is killed and the second new Pod is created. Where _maxSurge_ determines how many new Pods to create, maxUnavailable determines how many old Pods to kill. In this case, we can only kill one old Pod at a time. This ensures the capacity is always at least 3 - 1 Pods. If this is not enough for your environment configuration, you can disable the podDisruption and configure your own.
 
-*podDisruptionBudget* determines how many nodes must continue running in case of disruption.
+_podDisruptionBudget_ determines how many nodes must continue running in case of disruption.
 
-# How to
+## How to
 ### Install ECK
 
-First let's setup google cloud RBAC by running the following command:
+Set up Google cloud RBAC by running the following command:
 
-```
-kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
-```
+`kubectl create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")`
 
-Now is time to the ECK operator:
+### Install the ECK operator:
+`kubectl apply -f https://download.elastic.co/downloads/eck/1.5.0/all-in-one.yaml
+`
 
-```
-kubectl apply -f https://download.elastic.co/downloads/eck/1.5.0/all-in-one.yaml
-```
-
-It will create the ECK Operator pod and the cluster permissions into the namespace _elastic-system_.
+This creates the ECK Operator pod and cluster permissions in the namespace elastic-system.
 
 ### Configuring StorageClass
-With StorageClass you can describe the "classes" of storage you want to use. Differents classes might map to quality of service levels, backups purpose or any arbitrary policy determined by the administrator. 
-As we are using differents zones and differents hard configuration due to the fact we are using hot/warm/cold architecture, we need to specify a StorageClass for each zone and associate it with the proper PersistentVolume.
 
-Here an exemple of StorageClass that will be attached to the PersistentVolume in the hot nodes:
+With StorageClass you can describe the "classes" of storage you want to use. Different classes might map to quality of service levels, backup purpose or any arbitrary policy determined by the administrator.
+As we are using different zones and different hard configurations because of the  _hot/warm/cold_ architecture, we need to specify a StorageClass for each zone and associate it with the proper _PersistentVolume_.
 
+This is an example of StorageClass that is attached to the PersistentVolume in the hot nodes:
 ```
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -300,26 +286,25 @@ allowedTopologies:
 ```
 
 Some key points:
+- provisioner: kubernetes.io/gce-pd : It means we are using GCE as provider;
+- type: pd-ssd: - It provides ssd disks for the volumes attached to this StorageClass;
+- reclaimPolicy: Delete - It deletes PersistentVolumeClaim resources if the owning Elasticsearch nodes are scaled down or a deletion;
+- volumeBindingMode: WaitForFirstConsumer - It prevents the pod from being scheduled, because of affinity settings, on a host where the bound PersistentVolume is not available, this is a very crucial configuration;
+- allowedTopologies: - It binds your StorageClass with the zone labels (you can use any kind of label)
 
-- *provisioner: kubernetes.io/gce-pd* : it means we are using gce as provider;
-- *type: pd-ssd*: - it will provide ssd disks for the volumes attached to this StorageClass;
-- *reclaimPolicy: Delete* - it will deletes PersistentVolumeClaim resources if the owning Elasticsearch nodes are scaled down or a deletion;
-- *volumeBindingMode: WaitForFirstConsumer* - It will prevent the pod be scheduled, because of affinity settings, on a host where the bound PersistentVolume is not available, *this is a very crucial configuration*;
-- *allowedTopologies*: - it will bind your StorageClass with the zone labels (you can use any kind of label)
+### Create SAML configmap
 
+`kubectl create configmap saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml
+`
 
-## Create SAML configmap
+### Create Elasticsearch and Kibana resource
+Once you have the saml configmap, you can apply the Elasticsearch and Kibana manifest:
 
-```kubectl create configmap saml-metadata --from-file=../framsouza_eu_auth0_com-metadata.xml```
+`kubectl create -f eck-saml-hot-warm-cold.yml && kubectl create -f kibana.yml
+`
 
-## Create Elasticsearch & Kibana resource
-Once you have the saml configmap, you can apply the Elasticsearch & Kibana manifest
+It may take a while until all the resources get ready, but after some minutes you should see something like this:
 
-```
-kubectl create -f eck-saml-hot-warm-cold.yml && kubectl create -f kibana.yml
-```
-
-It may take a while untill all the resources get ready, but after some minutes you should see something like this:
 ```
 sh-3.2# kubectl get pods
 NAME                             READY   STATUS     RESTARTS   AGE
@@ -338,52 +323,41 @@ elastic-prd-es-warm-zone-d-0     1/1     Running    0          15m
 kibana-prd-kb-7467b79f54-btzhq   1/1     Running    0          4m8s
 ```
 
-Once you have all the pods runnings, there's a [Job](https://github.com/framsouza/eck-saml-hot-warm-cold/blob/main/es-config-job.yml) you must run in order to create the SAML rolling mapping and give the right permission to the user who will login using SAML, you can also create the [role & rolling mapping](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/saml-guide-stack.html#saml-role-mapping) via Kibana DevTools or curl.
-If you try to access Kibana SAML configuration without run this Job you will get a permission error. In summary, the job will spin up a container, execute the API calls and kill the pod.
+Once you have all the pods running, there's a Job you must run to create the SAML rolling mapping and give the right permission to the user who will login using SAML. You can also create the role & rolling mapping via Kibana DevTools or curl.
+If you try to access Kibana SAML configuration without running this Job, you will get a permission error. In summary, the job will spin up a container, execute the API calls and kill the pod.
 
-## Test connection
-At this point you can test the connection via curk or exposing Kibana service.
+### Test connection
+
+At this point you can test the connection via curl or exposing Kibana service.
 
 Grab the elastic password
-```
-kubectl get secret elastic-prd-es-elastic-user -o yaml
-```
+`kubectl get secret elastic-prd-es-elastic-user -o yaml
+`
 
-and the ES service name and run the following:
+And the ES service name and run the following:
+`curl -k https://elastic:es-password@es-service-name8:9200/_cluster/health?pretty
+`
 
-```
-curl -k https://elastic:es-password@es-service-name8:9200/_cluster/health?pretty
-```
-
-You can also expose the Kibana service and try to access it via browser:
-```
-kubectl port-forward svc/kibana-prd-kb-http 5601
-```
+You can also expose the Kibana service and try to access it with your browser:
+`kubectl port-forward svc/kibana-prd-kb-http 5601
+`
 
 ### Ingress controller
 
 Deploy the ingress resource:
-```
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.46.0/deploy/static/provider/cloud/deploy.yaml
-```
+`kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.46.0/deploy/static/provider/cloud/deploy.yaml
+`
 
-Before deploy the controller, we need create the ssl certificate, 
-```
-kubectl create secret tls framsouza-cert --key framsouza_co_key.txt --cert framsouza_co.crt
-```
+Before deploy the controller, create the SSL certificate,
+`kubectl create secret tls framsouza-cert --key framsouza_co_key.txt --cert framsouza_co.crt
+`
 
 Once the pods are running, you can deploy the ingress controller manifest:
+`kubectl create -f ingress.yml
+`
 
-```
-kubectl create -f ingress.yml
-```
-
-In this example, I have a domain called framsouza.co & a valid certificate, remeber to adjust these settings.
-
-And with that, we can access Elasticsearch using our own domain with our on tls certificate, this also covers the most important features to run an ECK environment in a production environment.
-
-
-
+In this example, we have a domain called framsouza.co and a valid certificate, remember to adjust these settings.
+And with that, we can access Elasticsearch using our own domain with our  TLS certificate. This also covers the most important features to run an ECK environment in a production environment.
 
 
 Cheers,
