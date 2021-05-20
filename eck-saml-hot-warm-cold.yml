@@ -18,7 +18,6 @@ spec:
       node.attr.zone: europe-west1-b	
       node.attr.type: hot
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
       xpack.security.authc.token.enabled: true
       xpack:
@@ -107,7 +106,6 @@ spec:
     config:
       node.attr.zone: europe-west1-c
       node.attr.type: hot
-      http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       xpack:
@@ -194,7 +192,6 @@ spec:
       node.attr.zone: europe-west1-d
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.attr.type: hot
-      http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
       xpack.security.authc.token.enabled: true
       xpack:
@@ -280,7 +277,6 @@ spec:
     config:
       node.attr.zone: europe-west1-b
       node.attr.type: warm
-      http.max_content_length: 200mb
       node.roles: data_warm
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       xpack:
@@ -367,7 +363,6 @@ spec:
       node.attr.zone: europe-west1-c
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.attr.type: warm
-      http.max_content_length: 200mb
       node.roles: data_warm
       xpack:
         security:
@@ -453,7 +448,6 @@ spec:
       node.attr.zone: europe-west1-d
       node.attr.type: warm
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      http.max_content_length: 200mb
       node.roles: data_warm
       xpack:
         security:
@@ -538,7 +532,6 @@ spec:
     config:
       node.attr.zone: europe-west1-b
       node.attr.type: cold
-      http.max_content_length: 200mb
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       xpack:
@@ -624,7 +617,6 @@ spec:
     config:
       node.attr.zone: europe-west1-c
       node.attr.type: cold
-      http.max_content_length: 200mb
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       xpack:
@@ -710,7 +702,6 @@ spec:
     config:
       node.attr.zone: europe-west1-d
       node.attr.type: cold
-      http.max_content_length: 200mb
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       xpack:
@@ -796,7 +787,6 @@ spec:
     config:
       node.attr.zone: europe-west1-b
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      http.max_content_length: 200mb
       node.ml: false
       node.data: false
       node.master: true
@@ -883,7 +873,6 @@ spec:
     count: 1
     config:
       node.attr.zone: europe-west1-c
-      http.max_content_length: 200mb
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.ml: false
       node.master: true
@@ -972,7 +961,6 @@ spec:
     config:
       node.attr.zone: europe-west1-d
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      http.max_content_length: 200mb
       node.ml: false
       node.data: false
       node.master: true
