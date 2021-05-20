@@ -20,7 +20,6 @@ spec:
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
-      node.store.allow_mmap: false
       xpack.security.authc.token.enabled: true
       xpack:
         security:
@@ -116,7 +115,6 @@ spec:
       node.attr.type: hot
       http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
-      node.store.allow_mmap: false
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       xpack:
         security:
@@ -210,7 +208,6 @@ spec:
       node.attr.type: hot
       http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
-      node.store.allow_mmap: false
       xpack.security.authc.token.enabled: true
       xpack:
         security:
@@ -304,7 +301,6 @@ spec:
       http.max_content_length: 200mb
       node.roles: data_warm
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -397,7 +393,6 @@ spec:
       node.attr.type: warm
       http.max_content_length: 200mb
       node.roles: data_warm
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -490,7 +485,6 @@ spec:
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       http.max_content_length: 200mb
       node.roles: data_warm
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -583,7 +577,6 @@ spec:
       http.max_content_length: 200mb
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -676,7 +669,6 @@ spec:
       http.max_content_length: 200mb
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -769,7 +761,6 @@ spec:
       http.max_content_length: 200mb
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -863,7 +854,6 @@ spec:
       node.ml: false
       node.data: false
       node.master: true
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -958,7 +948,6 @@ spec:
       node.ml: false
       node.master: true
       node.data: false
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
@@ -1053,7 +1042,6 @@ spec:
       node.ml: false
       node.data: false
       node.master: true
-      node.store.allow_mmap: false
       xpack:
         security:
           authc:
