@@ -22,17 +22,11 @@ _3 Nodes pools_
 - 1 Cold Node Pool with Kubernetes instances running spread across 3 availability zones
 
 _Instances configuration_
-- hot nodes: c2-standard-4 (4 vCPUs, 16 GB memory, 100GB disk)
-- warm nodes: e2-standard-2 (2 vCPUs, 8 GB memory, 100GB disk)
-- cold nodes: e2-standard-2 (2 vCPUs, 8 GB memory, 100GB disk)
+- hot nodes: c2-standard-4 (4 vCPUs, 16 GB memory)
+- warm nodes: e2-standard-2 (2 vCPUs, 8 GB memory)
+- cold nodes: e2-standard-2 (2 vCPUs, 8 GB memory)
 
-_9 Elasticsearch instances (Split by hot and warm, cold and dedicated master) plus 1 Kibana instance*_
-- 3 Elasticsearch hot data node (50Gi SSD disk, 4Gi JVM, 8Gi memory)
-- 3 Elasticsearch warm data node (100Gi disk, 2Gi JVM, 4Gi memory)
-- 3 Elasticsearch cold data node (100Gi disk, 2Gi JVM, 4Gi memory)
-- 3 Elasticsearch master node (10Gi disk, 1Gi JVM, 2Gi memory)
-
-_GKE zones: europe-west1-b, europe-west1-c, europe-west1-d_
+_9 Elasticsearch instances (Split by hot and warm, cold and dedicated master) plus 2 Kibana instances running at zones europe-west1-b, europe-west1-c, europe-west1-d_ 
 
 For each node pool we use a specific Kubernetes label to attach the Elasticsearch instance into the right hard configuration. The label name is called "type" and the values are: hot, warm or cold. You can change and add the label later by using the command line.
 
@@ -51,7 +45,6 @@ The Elasticsearch manifest file eck-saml-hot-warm-cold.yml contains the Elastics
     config:
       node.attr.zone: europe-west1-b
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
-      http.max_content_length: 200mb
       node.roles: [ data_hot, data_content ]
       node.store.allow_mmap: false
 ```
@@ -123,17 +116,11 @@ The hot node will have a 50Gi available of disk which refers to the storage clas
                   operator: In
                   values:
                   - "europe-west1-b"
-          podAntiAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
-              topologyKey: "kubernetes.io/hostname"
 ```
 
-The affinity feature restricts scheduling pods in a group of Kubernetes nodes based on labels. Node affinity is conceptually similar to nodeSelector that defines which node the pod will be scheduled based on the label. _nodeAffinity_ greatly extends the types of constraints you can express using enhancements labels. podAntiAffinity will prevent scheduling Elasticsearch nodes on the same host.
+The affinity feature restricts scheduling pods in a group of Kubernetes nodes based on labels. Node affinity is conceptually similar to nodeSelector that defines which node the pod will be scheduled based on the label. _nodeAffinity_ greatly extends the types of constraints you can express using enhancements labels.
 
-_podAffinity & nodeAffinity_ are using _requiredDuringSchedulingIgnoredDuringExecution_ affinity type. That means, a hard limit that rules must be met for a pod to be scheduled in a node. In this example, we're defining the following: "only run the pod on nodes in the zone europe-west1-b". The nodeSelector will be matched with the Kubernetes Label you are using at the node, in this case type: hot.
+nodeAffinity_ is using _requiredDuringSchedulingIgnoredDuringExecution_ affinity type. That means, a hard limit that rules must be met for a pod to be scheduled in a node. In this example, we're defining the following: "only run the pod on nodes in the zone europe-west1-b". The nodeSelector will be matched with the Kubernetes Label you are using at the node, in this case type: hot.
 
 ### Containers definition
 ```
