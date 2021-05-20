@@ -4,7 +4,7 @@ metadata:
   name: kibana-prd
 spec:
   version: 7.12.1
-  count: 1
+  count: 2
   elasticsearchRef:
     name: elastic-prd
     namespace: default
