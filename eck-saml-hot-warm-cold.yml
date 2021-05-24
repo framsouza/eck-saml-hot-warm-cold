@@ -19,10 +19,12 @@ spec:
       node.attr.type: hot
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.roles: [ data_hot, data_content ]
+      node.store.allow_mmap: false
       xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
+            realms:
               saml:
                 saml1:
                   attributes.principal: nameid
@@ -32,7 +34,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -42,7 +43,7 @@ spec:
         resources:
           requests:
             storage: 50Gi
-        storageClassName: sc-zone-b
+        storageClassName: sc-hot
     podTemplate:
       spec:
         nodeSelector:
@@ -59,17 +60,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms4g -Xmx4g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 8Gi
-              cpu: 200m
+              cpu: 1
             limits:
               memory: 8Gi
-              cpu: 200m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -97,17 +95,15 @@ spec:
           - |
             bin/elasticsearch-plugin install --batch repository-gcs
           name: install-plugins
-        - name: sysctl
-          securityContext:
-            privileged: true
-          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
   - name: hot-zone-c
     count: 1
     config:
       node.attr.zone: europe-west1-c
       node.attr.type: hot
       node.roles: [ data_hot, data_content ]
+      node.store.allow_mmap: false
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -121,7 +117,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -131,7 +126,7 @@ spec:
         resources:
           requests:
             storage: 50Gi
-        storageClassName: sc-zone-c
+        storageClassName: sc-hot
     podTemplate:
       spec:
         nodeSelector:
@@ -148,17 +143,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms4g -Xmx4g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 8Gi
-              cpu: 200m
+              cpu: 1
             limits:
               memory: 8Gi
-              cpu: 200m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -192,6 +184,7 @@ spec:
       node.attr.zone: europe-west1-d
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.attr.type: hot
+      node.store.allow_mmap: false
       node.roles: [ data_hot, data_content ]
       xpack.security.authc.token.enabled: true
       xpack:
@@ -207,7 +200,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -217,7 +209,7 @@ spec:
         resources:
           requests:
             storage: 50Gi
-        storageClassName: sc-zone-d
+        storageClassName: sc-hot
     podTemplate:
       spec:
         nodeSelector:
@@ -234,17 +226,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms4g -Xmx4g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 8Gi
-              cpu: 200m
+              cpu: 1
             limits:
               memory: 8Gi
-              cpu: 200m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -278,7 +267,9 @@ spec:
       node.attr.zone: europe-west1-b
       node.attr.type: warm
       node.roles: data_warm
+      node.store.allow_mmap: false
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -292,7 +283,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -302,7 +292,7 @@ spec:
         resources:
           requests:
             storage: 50Gi
-        storageClassName: sc-zone-b
+        storageClassName: sc-warm-cold
     podTemplate:
       spec:
         nodeSelector:
@@ -319,17 +309,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms2g -Xmx2g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 4Gi
-              cpu: 100m
+              cpu: 1
             limits:
               memory: 4Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -363,7 +350,9 @@ spec:
       node.attr.zone: europe-west1-c
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.attr.type: warm
+      node.store.allow_mmap: false
       node.roles: data_warm
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -377,7 +366,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -387,7 +375,7 @@ spec:
         resources:
           requests:
             storage: 50Gi
-        storageClassName: sc-zone-c
+        storageClassName: sc-warm-cold
     podTemplate:
       spec:
         nodeSelector:
@@ -404,17 +392,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms2g -Xmx2g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 4Gi
-              cpu: 100m
+              cpu: 1
             limits:
               memory: 4Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -446,9 +431,11 @@ spec:
     count: 1
     config:
       node.attr.zone: europe-west1-d
+      node.store.allow_mmap: false
       node.attr.type: warm
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.roles: data_warm
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -462,7 +449,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -472,7 +458,7 @@ spec:
         resources:
           requests:
             storage: 50Gi
-        storageClassName: sc-zone-d
+        storageClassName: sc-warm-cold
     podTemplate:
       spec:
         nodeSelector:
@@ -489,17 +475,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms2g -Xmx2g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 4Gi
-              cpu: 100m
+              cpu: 1
             limits:
               memory: 4Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -532,8 +515,10 @@ spec:
     config:
       node.attr.zone: europe-west1-b
       node.attr.type: cold
+      node.store.allow_mmap: false
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -547,7 +532,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -557,7 +541,7 @@ spec:
         resources:
           requests:
             storage: 100Gi
-        storageClassName: sc-zone-b
+        storageClassName: sc-warm-cold
     podTemplate:
       spec:
         nodeSelector:
@@ -574,17 +558,13 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms1g -Xmx1g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 2Gi
-              cpu: 100m
             limits:
               memory: 2Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -617,8 +597,10 @@ spec:
     config:
       node.attr.zone: europe-west1-c
       node.attr.type: cold
+      node.store.allow_mmap: false
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -632,7 +614,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -642,7 +623,7 @@ spec:
         resources:
           requests:
             storage: 100Gi
-        storageClassName: sc-zone-c
+        storageClassName: sc-warm-cold
     podTemplate:
       spec:
         nodeSelector:
@@ -659,17 +640,13 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms1g -Xmx1g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 2Gi
-              cpu: 100m
             limits:
               memory: 2Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -702,8 +679,10 @@ spec:
     config:
       node.attr.zone: europe-west1-d
       node.attr.type: cold
+      node.store.allow_mmap: false
       node.roles: data_cold
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -717,7 +696,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -727,7 +705,7 @@ spec:
         resources:
           requests:
             storage: 100Gi
-        storageClassName: sc-zone-d
+        storageClassName: sc-warm-cold
     podTemplate:
       spec:
         nodeSelector:
@@ -744,17 +722,13 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms1g -Xmx1g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 2Gi
-              cpu: 100m
             limits:
               memory: 2Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -787,9 +761,11 @@ spec:
     config:
       node.attr.zone: europe-west1-b
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
+      node.store.allow_mmap: false
       node.ml: false
       node.data: false
       node.master: true
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -803,7 +779,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -813,7 +788,7 @@ spec:
         resources:
           requests:
             storage: 10Gi
-        storageClassName: sc-zone-b
+        storageClassName: sc-hot
     podTemplate:
       spec:
       spec:
@@ -831,17 +806,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms1g -Xmx1g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 2Gi
-              cpu: 100m
+              cpu: 1
             limits:
               memory: 2Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -875,8 +847,10 @@ spec:
       node.attr.zone: europe-west1-c
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.ml: false
+      node.store.allow_mmap: false
       node.master: true
       node.data: false
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -890,7 +864,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -900,7 +873,7 @@ spec:
         resources:
           requests:
             storage: 10Gi
-        storageClassName: sc-zone-c
+        storageClassName: sc-hot
     podTemplate:
       spec:
       spec:
@@ -918,17 +891,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms1g -Xmx1g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 2Gi
-              cpu: 100m
+              cpu: 1
             limits:
               memory: 2Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -962,8 +932,10 @@ spec:
       node.attr.zone: europe-west1-d
       cluster.routing.allocation.awareness.attributes: k8s_node_name,zone
       node.ml: false
+      node.store.allow_mmap: false
       node.data: false
       node.master: true
+      xpack.security.authc.token.enabled: true
       xpack:
         security:
           authc:
@@ -977,7 +949,6 @@ spec:
                   sp.acs: https://framsouza.co/api/security/v1/saml
                   sp.entity_id: https://framsouza.co
                   sp.logout: https://framsouza.co/logout
-      xpack.security.authc.token.enabled: true
     volumeClaimTemplates:
     - metadata:
         name: elasticsearch-data
@@ -987,7 +958,7 @@ spec:
         resources:
           requests:
             storage: 10Gi
-        storageClassName: sc-zone-d
+        storageClassName: sc-hot
     podTemplate:
       spec:
       spec:
@@ -1005,17 +976,14 @@ spec:
         containers:
         - name: elasticsearch
           env:
-          - name: ES_JAVA_OPTS
-            value: -Xms1g -Xmx1g
           - name: READINESS_PROBE_TIMEOUT
             value: "10"
           resources:
             requests:
               memory: 2Gi
-              cpu: 100m
+              cpu: 1
             limits:
               memory: 2Gi
-              cpu: 100m
           volumeMounts:
           - name: saml-metadata
             mountPath:  /usr/share/elasticsearch/config/framsouza_eu_auth0_com-metadata.xml
@@ -1041,8 +1009,6 @@ spec:
           - sh
           - -c
           - |
-            bin/elasticsearch-plugin install --batch repository-gcs
-          name: install-plugins
             bin/elasticsearch-plugin install --batch repository-gcs
           name: install-plugins
   updateStrategy:
