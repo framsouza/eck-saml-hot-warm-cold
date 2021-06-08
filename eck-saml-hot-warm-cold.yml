@@ -1015,9 +1015,3 @@ spec:
     changeBudget:
       maxSurge: 1
       maxUnavailable: 1
-  podDisruptionBudget:
-    spec:
-      minAvailable: 2
-      selector:
-        matchLabels:
-          elasticsearch.k8s.elastic.co/cluster-name: elastic-prd
